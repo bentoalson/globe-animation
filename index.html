@@ -9,6 +9,7 @@
     --chip: #FFB800;
     --pin: #9A4A08;
     --label-bg: #FFFFFF;
+    --grid: #5B564D;
   }
   @media (prefers-color-scheme: dark) {
     :root { --ground: #171411; }
@@ -71,9 +72,10 @@
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const HOME = [98.6, -39.5];             // rotation that centers the United States
-  const US_SCALE = 1.2;                   // draw the US a little larger than life
+  const US_SCALE = 1.3;                   // draw the Americas larger than life
   const GEO_ANCHOR = [-98.6, 39.5];       // scale about the center of the lower 48
+  const LAT_SHIFT = -12;                  // slide everything south so Canada stays off the pole
+  const HOME = [98.6, -(39.5 + LAT_SHIFT)];  // rotation that keeps the shifted US centered
   const PARALLAX = [3.2, 2.2];            // max cursor-follow offset, degrees [λ, φ]
   const INTRO_MS = 2400;
   const DOT_STAGGER_MS = 60, DOT_POP_MS = 260;
@@ -81,9 +83,15 @@
 
   const world = topojson.feature(COUNTRIES_TOPO, COUNTRIES_TOPO.objects.countries);
 
+  // soft-compress extreme latitudes: strictly monotonic, so scaled rings can
+  // never flatten onto a pole and invert their spherical winding
+  const softLat = x => {
+    const T = 65, R = 24;
+    return Math.abs(x) <= T ? x : Math.sign(x) * (T + R * Math.tanh((Math.abs(x) - T) / R));
+  };
   const scalePoint = ([lon, lat]) => [
     GEO_ANCHOR[0] + (lon - GEO_ANCHOR[0]) * US_SCALE,
-    Math.max(-89.9, Math.min(89.9, GEO_ANCHOR[1] + (lat - GEO_ANCHOR[1]) * US_SCALE)),
+    softLat(GEO_ANCHOR[1] + (lat - GEO_ANCHOR[1]) * US_SCALE + LAT_SHIFT),
   ];
   const scaleRings = r => Array.isArray(r[0][0]) ? r.map(scaleRings) : r.map(scalePoint);
   const scaleFeature = f => ({
@@ -111,10 +119,9 @@
   const sphere = gGlobe.append("path").attr("fill", "var(--sphere)")
     .attr("stroke", "var(--ink)").attr("stroke-width", 1.4);
   const otherPath = gGlobe.append("path").attr("fill", "var(--land-dim)");
-  const usPath = gGlobe.append("path").attr("fill", "var(--land)")
-    .attr("stroke", "var(--ink)").attr("stroke-width", 1);
+  const usPath = gGlobe.append("path").attr("fill", "var(--land)");
   const gratPath = gGlobe.append("path").attr("fill", "none")
-    .attr("stroke", "var(--ink)").attr("stroke-width", 1.4);
+    .attr("stroke", "var(--grid)").attr("stroke-width", 1.4);
   const gDots = svg.append("g");
   const gChips = svg.append("g").attr("pointer-events", "none");  // lines + tags draw above the dots
 
