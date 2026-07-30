@@ -86,14 +86,20 @@
     Math.max(-89.9, Math.min(89.9, GEO_ANCHOR[1] + (lat - GEO_ANCHOR[1]) * US_SCALE)),
   ];
   const scaleRings = r => Array.isArray(r[0][0]) ? r.map(scaleRings) : r.map(scalePoint);
-  const usRaw = world.features.find(f => f.id === "840");
-  const usFeature = {
-    ...usRaw,
-    geometry: { ...usRaw.geometry, coordinates: scaleRings(usRaw.geometry.coordinates) },
+  const scaleFeature = f => ({
+    ...f,
+    geometry: { ...f.geometry, coordinates: scaleRings(f.geometry.coordinates) },
+  });
+
+  // keep only the Americas, all enlarged together so shared borders stay coherent
+  const isAmericas = f => {
+    const [lon, lat] = d3.geoCentroid(f);
+    return lon > -170 && lon < -25 && lat > -62;
   };
+  const usFeature = scaleFeature(world.features.find(f => f.id === "840"));
   const otherLand = {
     type: "FeatureCollection",
-    features: world.features.filter(f => f.id !== "840"),
+    features: world.features.filter(f => f.id !== "840" && isAmericas(f)).map(scaleFeature),
   };
   const graticule = d3.geoGraticule().step([30, 30]);
 
@@ -109,8 +115,8 @@
     .attr("stroke", "var(--ink)").attr("stroke-width", 1);
   const gratPath = gGlobe.append("path").attr("fill", "none")
     .attr("stroke", "var(--ink)").attr("stroke-width", 1.4);
-  const gChips = svg.append("g");
   const gDots = svg.append("g");
+  const gChips = svg.append("g").attr("pointer-events", "none");  // lines + tags draw above the dots
 
   const PIN_D = "M0,-11 C-5.2,-11 -9,-7.4 -9,-2.6 C-9,1.6 -4.4,7.6 0,12 C4.4,7.6 9,1.6 9,-2.6 C9,-7.4 5.2,-11 0,-11 Z M0,-6.4 A3.6,3.6 0 1,1 0,0.8 A3.6,3.6 0 1,1 0,-6.4 Z";
 
