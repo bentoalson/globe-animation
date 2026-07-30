@@ -72,12 +72,25 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const HOME = [98.6, -39.5];             // rotation that centers the United States
-  const INTRO_MS = 3000;
+  const US_SCALE = 1.2;                   // draw the US a little larger than life
+  const GEO_ANCHOR = [-98.6, 39.5];       // scale about the center of the lower 48
+  const PARALLAX = [3.2, 2.2];            // max cursor-follow offset, degrees [λ, φ]
+  const INTRO_MS = 2400;
   const DOT_STAGGER_MS = 60, DOT_POP_MS = 260;
   const LINE_MS = 320, CHIP_MS = 240;
 
   const world = topojson.feature(COUNTRIES_TOPO, COUNTRIES_TOPO.objects.countries);
-  const usFeature = world.features.find(f => f.id === "840");
+
+  const scalePoint = ([lon, lat]) => [
+    GEO_ANCHOR[0] + (lon - GEO_ANCHOR[0]) * US_SCALE,
+    Math.max(-89.9, Math.min(89.9, GEO_ANCHOR[1] + (lat - GEO_ANCHOR[1]) * US_SCALE)),
+  ];
+  const scaleRings = r => Array.isArray(r[0][0]) ? r.map(scaleRings) : r.map(scalePoint);
+  const usRaw = world.features.find(f => f.id === "840");
+  const usFeature = {
+    ...usRaw,
+    geometry: { ...usRaw.geometry, coordinates: scaleRings(usRaw.geometry.coordinates) },
+  };
   const otherLand = {
     type: "FeatureCollection",
     features: world.features.filter(f => f.id !== "840"),
@@ -102,7 +115,11 @@
   const PIN_D = "M0,-11 C-5.2,-11 -9,-7.4 -9,-2.6 C-9,1.6 -4.4,7.6 0,12 C4.4,7.6 9,1.6 9,-2.6 C9,-7.4 5.2,-11 0,-11 Z M0,-6.4 A3.6,3.6 0 1,1 0,0.8 A3.6,3.6 0 1,1 0,-6.4 Z";
 
   // chipState: hidden | in | shown | out — driven by hover instead of the horizon
-  const cities = CITIES.map((c, i) => ({ ...c, i, chipState: "hidden", prog: 0, dotT: 0 }));
+  // city coordinates get the same enlargement as the US shape so dots stay put
+  const cities = CITIES.map((c, i) => {
+    const [lon, lat] = scalePoint([c.lon, c.lat]);
+    return { ...c, lon, lat, i, chipState: "hidden", prog: 0, dotT: 0 };
+  });
   for (const c of cities) {
     const chip = gChips.append("g").style("display", "none");
     c.chipGroup = chip;
@@ -237,10 +254,21 @@
   }
 
   // --- intro: spin in, land on the US, then pop the dots in ---------------------
-  const START = [HOME[0] - 170, -4];
+  const START = [HOME[0] - 85, -14];
   const introInterp = d3.interpolate(START, HOME);
   let introT = reduceMotion ? 1 : 0;
   let landedAt = null;
+
+  // slight parallax: the globe leans a few degrees toward the cursor
+  let targetOff = [0, 0], curOff = [0, 0];
+  window.addEventListener("pointermove", e => {
+    if (reduceMotion) return;
+    targetOff = [
+      (e.clientX / W - 0.5) * 2 * PARALLAX[0],
+      (0.5 - e.clientY / H) * 2 * PARALLAX[1],   // surface follows the cursor on both axes
+    ];
+  });
+  document.addEventListener("pointerleave", () => { targetOff = [0, 0]; });
 
   let lastFrame = performance.now();
   function frame(now) {
@@ -251,9 +279,12 @@
       introT = Math.min(1, introT + dtMs / INTRO_MS);
       projection.rotate(introInterp(easeInOut(introT)));
       drawBase();
-    } else if (landedAt === null) {
-      landedAt = now;
-      projection.rotate(HOME);
+    } else {
+      if (landedAt === null) landedAt = now;
+      const blend = 1 - Math.exp(-dtMs / 220);
+      curOff[0] += (targetOff[0] - curOff[0]) * blend;
+      curOff[1] += (targetOff[1] - curOff[1]) * blend;
+      projection.rotate([HOME[0] + curOff[0], HOME[1] + curOff[1]]);
       drawBase();
     }
 
