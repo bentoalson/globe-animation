@@ -58,16 +58,11 @@
   }
 
   const CITIES = [
-    { name: "New York City, NY",          lon:  -74.01, lat: 40.71 },
-    { name: "Los Angeles / SoCal, CA",    lon: -118.24, lat: 34.05 },
-    { name: "San Francisco / Bay Area, CA", lon: -122.42, lat: 37.77 },
-    { name: "Austin, TX",                 lon:  -97.74, lat: 30.27, anchor: [-1, 0.5] },
-    { name: "Seattle, WA",                lon: -122.33, lat: 47.61 },
-    { name: "Denver, CO",                 lon: -104.99, lat: 39.74, anchor: [-1, -0.25] },
-    { name: "Indianapolis, IN",           lon:  -86.16, lat: 39.77, anchor: [1, 0.21] },
-    { name: "Nashville, TN",              lon:  -86.78, lat: 36.16 },
-    { name: "Atlanta, GA",                lon:  -84.39, lat: 33.75 },
-    { name: "Washington, DC",             lon:  -77.04, lat: 38.91 },
+    { name: "New York City, NY", lon:  -74.01, lat: 40.71 },
+    { name: "Los Angeles, CA",   lon: -118.24, lat: 34.05 },
+    { name: "Austin, TX",        lon:  -97.74, lat: 30.27, anchor: [-1, 0.5] },
+    { name: "Seattle, WA",       lon: -122.33, lat: 47.61 },
+    { name: "Denver, CO",        lon: -104.99, lat: 39.74 },
   ];
 
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -314,11 +309,16 @@
       drawBase();
     } else {
       if (landedAt === null) landedAt = now;
-      const blend = 1 - Math.exp(-dtMs / 220);
-      curOff[0] += (targetOff[0] - curOff[0]) * blend;
-      curOff[1] += (targetOff[1] - curOff[1]) * blend;
-      projection.rotate([HOME[0] + curOff[0], HOME[1] + curOff[1]]);
-      drawBase();
+      // hold the parallax still while a tag is up — otherwise the drift slides
+      // the hovered dot out from under a stationary cursor, firing a bogus leave
+      const hoverActive = cities.some(c => c.chipState === "in" || c.chipState === "shown");
+      if (!hoverActive) {
+        const blend = 1 - Math.exp(-dtMs / 220);
+        curOff[0] += (targetOff[0] - curOff[0]) * blend;
+        curOff[1] += (targetOff[1] - curOff[1]) * blend;
+        projection.rotate([HOME[0] + curOff[0], HOME[1] + curOff[1]]);
+        drawBase();
+      }
     }
 
     if (landedAt !== null) {
