@@ -61,7 +61,7 @@
     { name: "New York City, NY",          lon:  -74.01, lat: 40.71 },
     { name: "Los Angeles / SoCal, CA",    lon: -118.24, lat: 34.05 },
     { name: "San Francisco / Bay Area, CA", lon: -122.42, lat: 37.77 },
-    { name: "Austin, TX",                 lon:  -97.74, lat: 30.27 },
+    { name: "Austin, TX",                 lon:  -97.74, lat: 30.27, anchor: "left" },
     { name: "Seattle, WA",                lon: -122.33, lat: 47.61 },
     { name: "Denver, CO",                 lon: -104.99, lat: 39.74 },
     { name: "Indianapolis, IN",           lon:  -86.16, lat: 39.77 },
@@ -232,11 +232,17 @@
       const padX = fs * 1.0;
       const boxW = sq + tw + padX * 2, boxH = sq;
 
-      let dx = c.px - cx, dy = c.py - cy;
-      const len = Math.hypot(dx, dy) || 1;
-      dx /= len; dy /= len;
-      const ax = cx + dx * (R + sq * 0.9);
-      const ay = cy + dy * (R + sq * 0.9);
+      let ax, ay;
+      if (c.anchor === "left") {           // straight out to the left at the dot's height
+        ax = cx - (R + sq * 0.9);
+        ay = c.py;
+      } else {                             // radial, outside the sphere
+        let dx = c.px - cx, dy = c.py - cy;
+        const len = Math.hypot(dx, dy) || 1;
+        dx /= len; dy /= len;
+        ax = cx + dx * (R + sq * 0.9);
+        ay = cy + dy * (R + sq * 0.9);
+      }
       const side = ax >= cx ? 1 : -1;
       let bx = side === 1 ? ax : ax - boxW;
       let by = ay - sq / 2;
