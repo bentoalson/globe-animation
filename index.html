@@ -63,8 +63,8 @@
     { name: "San Francisco / Bay Area, CA", lon: -122.42, lat: 37.77 },
     { name: "Austin, TX",                 lon:  -97.74, lat: 30.27, anchor: [-1, 0.5] },
     { name: "Seattle, WA",                lon: -122.33, lat: 47.61 },
-    { name: "Denver, CO",                 lon: -104.99, lat: 39.74 },
-    { name: "Indianapolis, IN",           lon:  -86.16, lat: 39.77 },
+    { name: "Denver, CO",                 lon: -104.99, lat: 39.74, anchor: [-1, -0.25] },
+    { name: "Indianapolis, IN",           lon:  -86.16, lat: 39.77, anchor: [1, 0.21] },
     { name: "Nashville, TN",              lon:  -86.78, lat: 36.16 },
     { name: "Atlanta, GA",                lon:  -84.39, lat: 33.75 },
     { name: "Washington, DC",             lon:  -77.04, lat: 38.91 },
@@ -159,8 +159,14 @@
 
     const show = () => { if (c.chipState === "hidden" || c.chipState === "out") c.chipState = "in"; };
     const hide = () => { if (c.chipState === "in" || c.chipState === "shown") c.chipState = "out"; };
-    dot.on("pointerenter", show);
-    dot.on("pointerleave", hide);
+    // guard against spurious boundary events: only honor enter/leave when the
+    // pointer's actual position agrees with the dot's current location
+    const within = e => {
+      const p = projection([c.lon, c.lat]);
+      return !!p && Math.hypot(e.clientX - p[0], e.clientY - p[1]) <= 18;
+    };
+    dot.on("pointerenter", e => { if (within(e)) show(); });
+    dot.on("pointerleave", e => { if (!within(e)) hide(); });
     // touch: tap toggles, since there is no hover
     dot.on("click", () => {
       if (c.chipState === "hidden" || c.chipState === "out") show(); else hide();
