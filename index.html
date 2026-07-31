@@ -61,7 +61,7 @@
     { name: "New York City, NY",          lon:  -74.01, lat: 40.71 },
     { name: "Los Angeles / SoCal, CA",    lon: -118.24, lat: 34.05 },
     { name: "San Francisco / Bay Area, CA", lon: -122.42, lat: 37.77 },
-    { name: "Austin, TX",                 lon:  -97.74, lat: 30.27, anchor: "left" },
+    { name: "Austin, TX",                 lon:  -97.74, lat: 30.27, anchor: [-1, 0.5] },
     { name: "Seattle, WA",                lon: -122.33, lat: 47.61 },
     { name: "Denver, CO",                 lon: -104.99, lat: 39.74 },
     { name: "Indianapolis, IN",           lon:  -86.16, lat: 39.77 },
@@ -233,9 +233,15 @@
       const boxW = sq + tw + padX * 2, boxH = sq;
 
       let ax, ay;
-      if (c.anchor === "left") {           // straight out to the left at the dot's height
-        ax = cx - (R + sq * 0.9);
-        ay = c.py;
+      if (Array.isArray(c.anchor)) {       // explicit direction: march from the dot
+        const dlen = Math.hypot(c.anchor[0], c.anchor[1]);
+        const ux = c.anchor[0] / dlen, uy = c.anchor[1] / dlen;
+        const fx = c.px - cx, fy = c.py - cy;
+        const rr = R + sq * 0.9;           // ...until just outside the sphere
+        const b = fx * ux + fy * uy;
+        const t = -b + Math.sqrt(Math.max(0, b * b - (fx * fx + fy * fy) + rr * rr));
+        ax = c.px + ux * t;
+        ay = c.py + uy * t;
       } else {                             // radial, outside the sphere
         let dx = c.px - cx, dy = c.py - cy;
         const len = Math.hypot(dx, dy) || 1;
